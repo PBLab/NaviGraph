@@ -1,2 +1,3 @@
 # NaviGraph
-NaviGraph (Navigation on the Graph), an open-source, flexible pipeline built to integrate diverse data streams within a unified graph-based framework
+NaviGraph (_Navigation on the Graph_)
+A flexible Python-based pipeline built to process and analyze diverse data within maze paradigms in a unified graph-based framework
