@@ -1,0 +1,13 @@
+opencv-python>=4.5.5.62
+numpy>=1.22.2
+omegaconf>=2.1.1
+pandas>=1.4.1
+hydra-core>=1.1.1
+matplotlib>=3.5.1
+networkx>=2.7.1
+tables
+seaborn>=0.12.2
+pytest>=7.3.2
+xarray
+dask
+zarr
