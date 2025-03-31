@@ -102,7 +102,7 @@ class MapLabeler(object):
         plt.show()
 
 
-@hydra.main(config_path="../configs", config_name="maze_master_basic")
+@hydra.main(config_path="../../configs", config_name="maze_master_basic")
 def main(cfg: DictConfig):
     transform_matrix = np.load('/home/elior/PycharmProjects/maze_analysis/demo_data/calibration_files/transform_matrix.npy')
     path_to_img = '/home/elior/PycharmProjects/maze_analysis/demo_data/maze_map.png'

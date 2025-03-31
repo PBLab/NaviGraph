@@ -7,10 +7,10 @@ from omegaconf import DictConfig
 import logging as lg
 
 from session.session import Session
-from calibrator.maze_calibrator import MazeCalibrator
+from navigraph.modules.calibrator.maze_calibrator import MazeCalibrator
 from analyzer.session_analyzer import SessionAnalyzer
 from plot_generator.plot_generator import PlotGenerator
-from visualizer.visualizer import Visualizer
+from navigraph.modules.visualizer.visualizer import Visualizer
 
 DEFAULT_RUNNING_MODE = 'analyze'
 STREAM_PATH = 'stream_path'

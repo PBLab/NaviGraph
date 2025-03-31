@@ -1,7 +1,7 @@
 from omegaconf import DictConfig
 import hydra
-from utils import get_input_arguments
-from manager import Manager
+from navigraph.utils.utils import get_input_arguments
+from navigraph.manager import Manager
 
 config_path, config_name = get_input_arguments()
 

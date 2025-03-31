@@ -1,6 +1,6 @@
 from omegaconf import DictConfig
 import os
-from session.session import Session
+from navigraph.session import Session
 import logging as lg
 import cv2
 import numpy as np

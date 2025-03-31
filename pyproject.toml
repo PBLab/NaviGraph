@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "navigraph"
+version = "2025.3.0"
+description = "A modular and extensible pipeline for maze behavioral analysis"
+authors = ["Amit Koren-Iton <amitkoren92@gmail.com>", "Elior Iton <elioriton@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">3.10, <4.0"
+numpy = "^2.2.4"
+opencv-python = "^4.11.0.86"
+pandas = "^2.2.3"
+hydra-core = "^1.3.2"
+matplotlib = "^3.10.1"
+networkx = "^3.4.2"
+omegaconf = "^2.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

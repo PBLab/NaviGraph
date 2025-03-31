@@ -3,8 +3,8 @@ import numpy as np
 from omegaconf import DictConfig
 import pandas as pd
 import logging as lg
-from session.session import FPS, TILE_ID, TREE_POSITION
-from session.session import Session
+from navigraph.session import FPS, TILE_ID, TREE_POSITION
+from navigraph.session import Session
 from .utils import a_to_b, count_unique_type_specific_objects,\
     count_node_visits_eliminating_sequences, Condition
 import operator
