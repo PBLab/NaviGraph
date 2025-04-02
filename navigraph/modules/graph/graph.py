@@ -1,54 +1,89 @@
+# graph_datasource.py
 import random
 import logging
-from typing import List, Tuple, Union, Callable, Optional
-import numpy as np
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Union
 import networkx as nx
 from omegaconf import DictConfig
-from pyvis.network import Network
-
-from session_module_base import SessionModule, register_module
-from modules.graph.graph_tile_dictionary import graph_dict  # mapping from tile id to node/edge
+from session_datasource import SessionDatasource  # our abstract datasource base class
+from graph_node import Node, TileNode
 
 
-class GraphBase(SessionModule):
+class GraphDatasource(SessionDatasource, ABC):
     """
-    Base class for all graph modules in Navigraph.
+    Abstract base class for graph datasources.
 
-    Provides common graph operations (shortest path, random walk) and visualization
-    using PyVis. Subclasses must implement the build_graph() method.
+    This class builds a NetworkX graph representing the maze topology and
+    provides common operations such as shortest path, random walk, and augmentation of the session DataFrame.
     """
 
-    def __init__(self, cfg: DictConfig, logger: Optional[logging.Logger] = None, **kwargs) -> None:
+    def __init__(self, cfg: DictConfig, logger: Optional[logging.Logger] = None, **kwargs: Any) -> None:
         super().__init__(logger=logger, **kwargs)
         self.cfg: DictConfig = cfg
-        self.graph: nx.Graph = nx.Graph()  # the internal NetworkX graph
+        self.graph: nx.Graph = nx.Graph()  # Underlying graph
+        self.logger.info(f"Initializing graph datasource: {self.__class__.__name__}")
 
+    @abstractmethod
     def build_graph(self) -> None:
         """
-        Build the graph and store it in self.graph.
-
-        Must be implemented by subclasses.
+        Build the graph (nodes and edges) and store it in self.graph.
         """
-        raise NotImplementedError("Subclasses must implement build_graph()")
+        pass
 
-    def get_tree_location(self, key: int) -> Union[Tuple, int]:
+    def load_graph_from_mapping(self, mapping: Dict[Any, Any]) -> None:
         """
-        Given a tile id (key), return the corresponding node (or edge) from the graph.
-        Uses a pre-defined dictionary mapping.
-        """
-        return graph_dict.get(key, None)
+        Load graph nodes and edges from a mapping dictionary.
 
-    def get_shortest_path(self, source: int, target: int, weight: Optional[str] = None, method: str = 'dijkstra') -> \
+        The mapping keys are tile ids and values can be:
+          - int: mapping to a physical node id.
+          - tuple: mapping to an edge (node1, node2).
+          - frozenset: containing both an int and a tuple, meaning the tile maps to both a node and an edge.
+
+        Nodes are created as TileNodes (tile_id is required) and edges are added with attributes:
+          'tile_id': the mapping tile id, and 'virtual': True if the edge is virtual.
+        """
+        nodes: Dict[int, TileNode] = {}
+        edges: List[Tuple[int, int, Dict[str, Any]]] = []
+
+        for tile_id, value in mapping.items():
+            if isinstance(value, int):
+                # Physical node
+                node = TileNode(node_id=value, tile_id=tile_id)
+                nodes[value] = node
+            elif isinstance(value, tuple):
+                # Edge between two nodes
+                n1, n2 = value
+                edges.append((n1, n2, {"tile_id": tile_id, "virtual": False}))
+            elif isinstance(value, frozenset):
+                node_id = None
+                edge_tuple = None
+                for item in value:
+                    if isinstance(item, int):
+                        node_id = item
+                    elif isinstance(item, tuple):
+                        edge_tuple = item
+                if node_id is not None:
+                    # For nodes that also map to an edge, mark the edge attribute as virtual
+                    node = TileNode(node_id=node_id, tile_id=tile_id)
+                    nodes[node_id] = node
+                if edge_tuple is not None:
+                    n1, n2 = edge_tuple
+                    edges.append((n1, n2, {"tile_id": tile_id, "virtual": True}))
+            else:
+                self.logger.warning("Unrecognized mapping for tile %s: %s", tile_id, value)
+
+        for node in nodes.values():
+            self.graph.add_node(node.node_id, data=node)
+        for u, v, attr in edges:
+            self.graph.add_edge(u, v, **attr)
+        self.logger.info("Graph loaded from mapping with %d nodes and %d edges", self.graph.number_of_nodes(),
+                         self.graph.number_of_edges())
+
+    def get_shortest_path(self, source: int, target: int, weight: Optional[str] = None, method: str = "dijkstra") -> \
     List[int]:
-        """
-        Compute the shortest path between source and target nodes.
-        """
         return nx.shortest_path(self.graph, source=source, target=target, weight=weight, method=method)
 
     def get_random_walk(self, source: int, target: int, disable_backtrack: bool = False) -> List[int]:
-        """
-        Compute a random walk path from source to target.
-        """
         path = [source]
         current_parent = None
         while source != target:
@@ -60,149 +95,47 @@ class GraphBase(SessionModule):
             path.append(source)
         return path
 
-    def visualize(self, output_file: str = "graph.html", notebook: bool = False) -> None:
+    def get_graph_location(self, tile_id: int) -> Optional[int]:
         """
-        Visualize the graph using PyVis. Nodes are added with their positions (if available)
-        and edges with optional weight information.
+        Given a tile id, return the node id from the graph whose associated TileNode has that tile_id.
+        If multiple nodes match, return the first one found.
+        """
+        for node_id in self.graph.nodes():
+            node_data = self.graph.nodes[node_id].get("data")
+            if node_data and hasattr(node_data, "tile_id") and node_data.tile_id == tile_id:
+                return node_id
+        return None
 
-        Args:
-            output_file (str): File path to save the HTML visualization.
-            notebook (bool): If True, show additional UI controls (e.g. for physics) in a notebook.
+    def augment_dataframe(self, df: Any) -> Any:
         """
-        net = Network(height="800px", width="100%", directed=False)
-        pos = nx.get_node_attributes(self.graph, 'pos')
-        for node in self.graph.nodes():
-            x, y = pos.get(node, (0, 0))
-            net.add_node(node, label=str(node), x=x, y=y)
-        for u, v, data in self.graph.edges(data=True):
-            net.add_edge(u, v, value=data.get('weight', 1))
-        # Set some basic options for interactivity.
-        net.set_options('''
-        var options = {
-          "nodes": {
-            "shape": "dot",
-            "size": 10
-          },
-          "edges": {
-            "smooth": false
-          },
-          "physics": {
-            "enabled": true,
-            "stabilization": {
-              "iterations": 1000
-            }
-          }
-        }
-        ''')
-        net.show(output_file)
-        if notebook:
-            net.show_buttons(filter_=['physics'])
+        Augment the provided DataFrame with graph-related information.
+
+        For example, if df has a column 'tile_id', add a new column 'graph_node' that maps each tile_id to a node id.
+        """
+        if "tile_id" in df.columns:
+            df["graph_node"] = df["tile_id"].apply(lambda tid: self.get_graph_location(tid))
+            self.logger.info("Augmented dataframe with 'graph_node' column.")
+        else:
+            self.logger.warning("DataFrame does not contain 'tile_id' column; skipping augmentation.")
+        return df
+
+    @abstractmethod
+    def get_visualizer(self) -> "GraphVisualizer":
+        """
+        Return an instance of a GraphVisualizer to visualize this graph.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_config(cls, config: dict) -> "GraphDatasource":
+        """
+        Create an instance from a configuration dictionary.
+        """
+        pass
 
     def initialize(self) -> None:
         """
-        Default initialization: log the module details.
-        Subclasses may call build_graph() during initialization.
+        Default initialization: log the datasource details.
         """
-        self.logger.info(f"Initializing graph module: {self.__class__.__name__}")
-        # Optionally, a subclass could call self.build_graph() here.
-
-
-@register_module
-class BinaryTreeGraph(GraphBase):
-    """
-    A binary tree graph implementation.
-
-    Builds a binary tree graph based on a given height. This implementation supports both
-    balanced and unbalanced trees (by adjusting the generation logic, if needed).
-    """
-
-    def __init__(self, cfg: DictConfig, weight_func: Optional[Callable[[int, int], float]] = None, **kwargs) -> None:
-        """
-        Initialize BinaryTreeGraph.
-
-        Args:
-            cfg (DictConfig): Configuration with graph parameters.
-            weight_func (Callable, optional): Function to determine edge weights (default constant 1).
-        """
-        super().__init__(cfg, **kwargs)
-        self.height: int = self.cfg.graph.height
-        self.weight_func: Callable[[int, int], float] = weight_func if weight_func is not None else (lambda p, c: 1)
-        self.build_graph()
-        self.logger.info("BinaryTreeGraph built with height %d", self.height)
-
-    def build_graph(self) -> None:
-        """
-        Build a binary tree graph.
-
-        Node naming convention: concatenation of level and node index.
-        Positions are computed using a rolling average for x-coordinates.
-        """
-        g = nx.Graph()
-        height = self.height
-        # For bottom level, initial positions are sequential integers.
-        x_pos = np.arange(2 ** height)
-        # Function to compute rolling mean with a window of 2.
-        get_x_pos = lambda x: np.convolve(x, np.ones(2), 'valid') / 2
-        # Build levels from bottom (highest index) to top (level 0)
-        for level in range(height)[::-1]:
-            num_nodes = 2 ** level
-            if level == height - 1:
-                x_positions = np.arange(2 ** height)
-            else:
-                x_positions = get_x_pos(x_pos)[::2]
-                x_pos = x_positions  # update for next level
-            for i in range(num_nodes):
-                node = int(f"{level}{i}")
-                pos = (x_positions[i], height - level)
-                g.add_node(node, pos=pos)
-                if level == height - 1:
-                    continue
-                left_child = int(f"{level + 1}{2 * i}")
-                right_child = int(f"{level + 1}{2 * i + 1}")
-                g.add_edge(node, left_child, weight=self.weight_func(node, left_child))
-                g.add_edge(node, right_child, weight=self.weight_func(node, right_child))
-        self.graph = g
-
-    @classmethod
-    def from_config(cls, config: dict) -> "BinaryTreeGraph":
-        """
-        Instantiate a BinaryTreeGraph from a configuration dictionary.
-
-        Expected configuration keys under "graph" include:
-          - height: the height of the binary tree.
-
-        Args:
-            config (dict): Configuration parameters.
-
-        Returns:
-            BinaryTreeGraph: An instance of BinaryTreeGraph.
-        """
-        height = config.get("graph", {}).get("height", 3)
-        return cls(cfg=config)
-
-
-def main(cfg: DictConfig) -> None:
-    logger = logging.getLogger("GraphModule")
-    logger.setLevel(logging.DEBUG)
-    # Create a BinaryTreeGraph from configuration.
-    graph_module = BinaryTreeGraph(cfg)
-
-    # Example usage: compute a random walk and log it.
-    random_walk = graph_module.get_random_walk(0, 637, disable_backtrack=False)
-    logger.info("Random walk from 0 to 637: %s", random_walk)
-
-    # Visualize the graph using PyVis.
-    graph_module.visualize(output_file="binary_tree_graph.html", notebook=False)
-
-
-if __name__ == '__main__':
-    import hydra
-    from omegaconf import DictConfig
-
-
-    @hydra.main(config_path="../../configs", config_name="maze_master_basic")
-    def hydra_main(cfg: DictConfig) -> None:
-        main(cfg)
-
-
-    hydra_main()
+        super().initialize()  # uses the default logging from SessionDatasource

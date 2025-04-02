@@ -8,7 +8,7 @@ from navigraph.session.session_datasource import SessionDataSource
 from navigraph.utils.logging import get_logger
 
 
-class KeypointsDataSource(SessionDataSource):
+class PoseDataSource(SessionDataSource):
     """
     A generic datasource for managing keypoints or behavioral location data.
 
