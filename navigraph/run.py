@@ -1,7 +1,7 @@
 from omegaconf import DictConfig
 import hydra
 from navigraph.utils.utils import get_input_arguments
-from navigraph.manager import Manager
+from navigraph.session_manager import SessionManager
 
 config_path, config_name = get_input_arguments()
 
@@ -9,7 +9,7 @@ config_path, config_name = get_input_arguments()
 @hydra.main(config_path=config_path, config_name=config_name)
 def main(cfg: DictConfig):
 
-    manager = Manager(cfg=cfg)
+    manager = SessionManager(cfg=cfg)
     manager.run()
 
 

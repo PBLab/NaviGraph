@@ -2,7 +2,7 @@ from omegaconf import OmegaConf
 from pandas import read_pickle
 from pandas.testing import assert_frame_equal
 
-from navigraph.manager import Manager
+from navigraph.session_manager import Manager
 
 
 class TestAnalyzer:

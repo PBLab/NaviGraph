@@ -64,7 +64,7 @@ class BinaryTreeGraph(GraphDatasource):
 
     def get_visualizer(self) -> GraphVisualizer:
         """
-        Return a PyVis-based visualizer.
+        Return a PyVis-based visualizers.
         """
         return PyVisVisualizer()
 

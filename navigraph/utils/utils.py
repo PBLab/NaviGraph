@@ -2,7 +2,7 @@ import argparse
 
 
 def get_input_arguments():
-    parser = argparse.ArgumentParser(prog='Maze Master',
+    parser = argparse.ArgumentParser(prog='Navigraph',
                                      description='Complete pipeline for maze experiment analysis in both real world '
                                                  'and frame coordinates')
     parser.add_argument('--config_path',
@@ -14,7 +14,7 @@ def get_input_arguments():
                         dest='config_name',
                         type=str,
                         help='Run time configuration file name',
-                        default="maze_master_basic")
+                        default="config")
     args = parser.parse_args()
 
     return args.config_path, args.config_name

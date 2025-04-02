@@ -6,7 +6,7 @@ from graph_visualizer import GraphVisualizer
 
 class PyVisVisualizer(GraphVisualizer):
     """
-    Graph visualizer using PyVis for interactive HTML-based visualization.
+    Graph visualizers using PyVis for interactive HTML-based visualization.
     """
     def visualize(self, graph: nx.Graph, output_file: str = "graph.html", **kwargs: Any) -> None:
         net = Network(height="800px", width="100%", directed=False)

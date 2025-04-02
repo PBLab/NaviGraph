@@ -1,0 +1,108 @@
+# =============================================================================
+# NaviGraph Experiment Configuration
+# =============================================================================
+
+# Global Settings
+verbose: false
+system_running_mode: "calibrate&analyze&visualize"  # Allowed: calibrate, test, analyze, visualize, or combination joined by '&'
+
+# =============================================================================
+# I/O and Parent Paths
+# =============================================================================
+
+# Parent folder containing one subfolder per session.
+session_data_path: "/path/to/sessions"
+
+# Output directory for all experiment results.
+experiment_output_path: "/path/to/outputs"
+
+# =============================================================================
+# Shared Datasources
+# =============================================================================
+# Shared datasources are generated once (via their class name) and are used by every session.
+shared_datasources:
+  MapDatasource:
+    map_path: "/path/to/shared/map/maze_map.png"
+    map_settings:
+      pixel_to_meter: 2279.4117647058824
+      origin: "(47, 40)"          # Top-left corner (x,y) of the grid.
+      grid_size: "(17, 17)"         # Grid dimensions as (columns, rows).
+      segment_length: 86          # Tile side length in pixels.
+  CalibratorDatasource:
+    registration_method: "homography&ransac"   # Options: 'affine', 'homography', 'homography&ransac'
+    save_transform_matrix: true
+    pre_calculated_transform_matrix_path: "/path/to/shared/calibration/transform_matrix.npy"
+  GraphDatasource:
+    height: 7
+    draw:
+      with_labels: true
+      font_weight: "bold"
+      node_size: 1000
+      font_size: 15
+    options:
+      static_node_color: "#C9D6E8"
+      static_edge_color: "k"
+      dynamic_node_color: "#FF0000"
+      dynamic_edge_color: "#FF0000"
+      history_node_color: "#8b0000"
+      history_edge_color: "#8b0000"
+      dynamic_reward_node_color: "#7CFC00"
+      dynamic_reward_edge_color: "#7CFC00"
+      history_reward_node_color: "#228B22"
+      history_reward_edge_color: "#228B22"
+      edge_width: 10
+
+# =============================================================================
+# Per-Session Datasources
+# =============================================================================
+# Each session folder must contain subfolders for these relative data.
+datasources:
+  PoseDatasource:
+    data_folder: "deeplabcut_output"
+    bodypart: "Nose"
+    likelihood: 0.3
+  NeuralActivityDatasource:
+    data_folder: "minian_output"
+  HeadDirectionDatasource:
+    data_folder: "head_direction"
+    head_direction_filename: "head_direction.csv"
+    head_direction_yaw_offset: -167
+    head_direction_positive_direction: -1
+
+# =============================================================================
+# Analysis Metrics
+# =============================================================================
+# Use YAML anchors for common constants to avoid repetition.
+constants:
+  reward_tile_id: &reward_tile_id 273
+  learning_start_tile_id: &learning_start_tile_id 145
+
+analyze:
+  metrics:
+    time_to_reward: { func_name: "time_a_to_b", args: { a: *learning_start_tile_id, b: *reward_tile_id } }
+    velocity_to_reward: { func_name: "velocity_a_to_b", args: { a: *learning_start_tile_id, b: *reward_tile_id } }
+    exploration_percentage: { func_name: "exploration_percentage" }
+    topological_distance_to_reward: { func_name: "num_nodes_in_path", args: { a: *learning_start_tile_id, b: *reward_tile_id, min_frame_rep: 5 } }
+    exploration_to_reward: { func_name: "num_nodes_in_path", args: { a: *learning_start_tile_id, b: *reward_tile_id, mode: "exploration" } }
+    eureka_path_length: { func_name: "shortest_path_from_a_to_b", args: { a: *learning_start_tile_id, b: *reward_tile_id, levels: [5, 6], strikes: 2 } }
+  save_as_csv: true
+  save_as_pkl: true
+  save_raw_data_as_pkl: true
+
+# =============================================================================
+# Visualization Settings
+# =============================================================================
+visualization:
+  show_visualization: true
+  record_visualization: false
+  fps: null          # null: use original video fps
+  resize: [800, 450]
+  draw_map:
+    show: true
+    method: "on_top"       # Options: 'on_top', 'side_by_side'
+    frame_location: "bottom_right"
+  draw_tree:
+    show: false           # Set to true if you wish to display graph overlays.
+    resize_factor: 1.0
+    method: "side_by_side"
+    show_tree_only: false
