@@ -101,7 +101,7 @@ Configurations in YAML (via Hydra) include:
 - Maze map and output paths
 - Calibration and analysis parameters
 
-Refer to [`examples/configs/base_config.yaml`](examples/configs/base_config.yaml).
+Refer to [`examples/configs/base_config.yaml`](configs/base_config.yaml).
 
 ---
 
@@ -109,21 +109,22 @@ Refer to [`examples/configs/base_config.yaml`](examples/configs/base_config.yaml
 
 ```bash
 .
+├── configs/
 ├── examples/
-├── LICENSE
+├── docs/
 ├── navigraph/
 │   ├── analysis/
-│   ├── configs/
 │   ├── modules/
 │   ├── session/
 │   ├── utils/
-│   ├── run.py
 │   └── session_manager.py
+├── scripts/
+├── tests/
 ├── poetry.lock
 ├── pyproject.toml
 ├── README.md
-├── scripts/
-└── tests/
+├── LICENSE
+└──  run.py
 ```
 
 ---
