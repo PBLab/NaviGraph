@@ -1,71 +1,72 @@
+<p align="center">
+  <img src="/docs/images/navigraph_logo.png" alt="NaviGraph Logo" width="400"/>
+</p>
+
+<br>
+
 # NaviGraph 🗺️: Navigation on the Graph
 
-**A graph-based Python pipeline for analyzing spatial decision-making in maze-like environments.**
+**A graph-based Python pipeline for comprehensive analysis of spatial decision-making in maze-like environments.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-<!-- Add other badges here later: PyPI version, build status, code coverage -->
+<!-- Add additional badges: PyPI, build status, coverage -->
 
 ---
 
-NaviGraph addresses the challenge of analyzing complex, multi-modal datasets from neuroscience experiments, particularly those involving spatial navigation in mazes. Classic methods often analyze behavioral tracking and neuronal activity streams independently, potentially missing the intricate dynamics of decision-making, especially subtle changes in disease models.
-
-**NaviGraph integrates diverse data streams (behavior, neural activity, physiology) into a unified graph-based framework, offering a holistic and sensitive perspective on cognitive processes.**
+**NaviGraph** is designed to address challenges in analyzing complex, multimodal datasets from neuroscience experiments involving spatial navigation. Unlike classical approaches, NaviGraph integrates diverse data streams—behavior, neural activity, and physiological measurements—within a unified graph-based framework, revealing intricate cognitive dynamics that traditional methods may overlook.
 
 ![NaviGraph Pipeline](https://raw.githubusercontent.com/your-username/navigraph/main/docs/images/pipeline_figure.png)  
-*Fig. 1: NaviGraph pipeline workflow (Conceptual — **Replace with your actual Figure 1 image path**). Shows stages from raw data input, through preprocessing (pose estimation, calcium analysis), registration (calibration, validation), analysis (classic & topological metrics), to aggregation.*
+*Fig. 1: NaviGraph pipeline overview. (Replace with actual image path)*
 
 ---
 
 ## ✨ Key Features
 
-- **Graph-Based Framework:** Models maze decision points as **nodes** and paths as **edges**, providing a powerful topological representation.
-- **Multi-Modal Data Integration:** Seamlessly combines behavioral data (pose estimation via DeepLabCut), neuronal activity (e.g., calcium imaging via Minian), and physiological data (e.g., head orientation) onto the graph structure.
-- **Synergistic Analysis:** Computes both **classic metrics** (time to reward, velocity) and novel **topological metrics** (cumulative path length on graph, wandering index, direct path length) for deeper insights.
-- **Modular & Flexible:** Easily adaptable pipeline structure allows integration of various data streams and customization for different maze designs and experimental setups.
-- **Configuration Driven:** Uses YAML files (managed via Hydra) for easy setup of paths, parameters, and system modes (calibrate, analyze, visualize, test).
-- **Extensible:** Built with registries for analysis functions and visualizers, allowing users to easily add custom metrics and plots.
-- **Visualization:** Offers powerful visualization capabilities, including mapping behavior, neural activity, and physiological data directly onto the maze graph structure.
+- **Graph-Based Modeling:** Represents maze decision points as nodes and navigational paths as edges, enabling robust topological analysis.
+- **Multi-Modal Integration:** Combines behavioral (DeepLabCut), neuronal (Minian calcium imaging), and physiological (head orientation) data seamlessly.
+- **Comprehensive Metrics:** Includes both classic (e.g., reward latency, velocity) and advanced topological metrics (path efficiency, wandering indices).
+- **Modular & Flexible:** Easily adaptable pipeline supports diverse maze configurations and experimental setups.
+- **Configuration-Driven:** Uses YAML configuration files via Hydra for effortless management of pipeline parameters and system modes.
+- **Extensible Framework:** Built-in registries facilitate quick addition of custom analysis functions and visualization modules.
+- **Advanced Visualization:** Powerful tools to visualize and interpret behavioral, neuronal, and physiological data directly on graph structures.
 
 ---
 
-## 🤔 Why NaviGraph?
+## 🤔 Why Use NaviGraph?
 
-- **Uncover Subtle Phenotypes:** Topological metrics can reveal behavioral and cognitive differences missed by classic measures alone.
-- **Holistic Understanding:** Analyze interactions between behavior, neural activity, and physiology within the same spatial context.
-- **Standardized & Reproducible:** Provides a structured framework for processing and analyzing complex multi-stream data.
-- **Intuitive Representation:** Visualizing data directly on the graph provides clear insights into navigation strategies and decision-making processes.
+- **Enhanced Sensitivity:** Identify subtle behavioral and cognitive phenotypes undetected by standard metrics.
+- **Unified Analysis:** Analyze behavior, neural activity, and physiology within a coherent spatial context.
+- **Reproducible Research:** Standardized processing and clear documentation ensure reproducibility across studies.
+- **Intuitive Insights:** Graph-based visualizations simplify interpretation of complex navigational strategies.
 
 ---
 
 ## 💡 Core Concepts
 
-At its heart, NaviGraph treats the maze not just as physical space, but as a **topological graph**:
+NaviGraph transforms maze data into a **topological graph**:
 
-- **Nodes:** Represent key locations, typically decision points in the maze.
-- **Edges:** Represent the paths or transitions between these nodes.
-- **Data Layers:** Behavioral metrics, neural activity traces, head direction angles, etc., are associated with specific nodes or edges.
+- **Nodes:** Key decision points in the maze.
+- **Edges:** Navigational paths between nodes.
+- **Data Layers:** Behavioral metrics, neuronal activity, physiological measures mapped directly onto graph elements.
 
 ---
 
-## ⚙️ Pipeline Workflow
+## ⚙️ Workflow
 
-NaviGraph processes data through several key stages, orchestrated by the `SessionManager`:
+The pipeline is orchestrated by `SessionManager`:
 
-1. **Input Data:** Raw behavioral video, neuronal recordings (e.g., miniscope data), optional physiological data.
-2. **Preprocessing:** Independent processing of raw streams (e.g., pose estimation with DeepLabCut, calcium trace extraction with Minian).
-3. **Registration (Calibration & Validation):**
-   - Aligns behavioral data (pixel coordinates) to the maze map.
-   - Validates the registration accuracy.
-   - Maps pixel coordinates to graph positions (nodes/edges).
-4. **Data Coupling:** Synchronizes all data streams on a frame-by-frame basis and stores the integrated data per session (e.g., as a `.pkl`).
-5. **Analysis:** Applies registered analysis functions to compute classic and topological metrics.
-6. **Visualization & Aggregation:** Generates visualizations and aggregates results across sessions for comparison.
+1. **Data Input:** Raw behavioral videos, neuronal recordings, physiological measurements.
+2. **Preprocessing:** Pose estimation (DeepLabCut), calcium trace extraction (Minian).
+3. **Registration:** Align and validate behavioral data with maze topology.
+4. **Data Integration:** Synchronize data streams, stored per session (`.pkl` format).
+5. **Analysis:** Compute classic and topological metrics.
+6. **Visualization & Aggregation:** Generate visual insights and aggregate results across experimental conditions.
 
 ---
 
 ## 🚀 Installation
 
-NaviGraph uses [Poetry](https://python-poetry.org/) for dependency management.
+NaviGraph dependencies are managed via [Poetry](https://python-poetry.org/).
 
 ```bash
 # Clone the repository
@@ -80,9 +81,9 @@ poetry install
 
 ## ⚡ Quick Start
 
-1. **Prepare your data:** Pose tracking `.h5` and optional calcium imaging `zarr`.
-2. **Configure your run:** Use an example YAML config and modify as needed.
-3. **Run the pipeline:**
+1. **Prepare your data:** Pose tracking (`.h5`), calcium imaging (`zarr`, optional).
+2. **Configure the pipeline:** Customize example YAML config files.
+3. **Execute pipeline:**
 
 ```bash
 poetry shell
@@ -93,54 +94,56 @@ python navigraph/run.py --config-path path/to/configs --config-name your_config
 
 ## 🔧 Configuration Overview
 
-YAML configuration via Hydra includes:
+Configurations in YAML (via Hydra) include:
 
 - `system_running_mode`: `calibrate`, `test`, `analyze`, `visualize`
-- Input paths: `stream_path`, `keypoint_detection_file_path`, etc.
-- `map_path`, `experiment_output_path`
-- `map_settings`, `calibrator_parameters`, `datasources`, `analyze`
+- Input paths: Data streams and keypoint detections
+- Maze map and output paths
+- Calibration and analysis parameters
 
-See `examples/configs/base_config.yaml`.
+Refer to [`examples/configs/base_config.yaml`](examples/configs/base_config.yaml).
 
 ---
 
 ## 📁 Project Structure
 
-```
+```bash
 .
-├── examples/              
+├── examples/
 ├── LICENSE
-├── navigraph/             
-│   ├── analysis/          
-│   ├── configs/           
-│   ├── modules/           
-│   ├── session/           
-│   ├── utils/             
-│   ├── run.py             
-│   └── session_manager.py 
+├── navigraph/
+│   ├── analysis/
+│   ├── configs/
+│   ├── modules/
+│   ├── session/
+│   ├── utils/
+│   ├── run.py
+│   └── session_manager.py
 ├── poetry.lock
-├── pyproject.toml         
-├── README.md              
-├── scripts/               
-└── tests/                 
+├── pyproject.toml
+├── README.md
+├── scripts/
+└── tests/
 ```
 
 ---
 
 ## 📄 Citation
 
-> Iton, A. K., Iton, E., Michaelson, D. M., & Blinder, P. (Year). NaviGraph - a graph-based approach for analyzing spatial decision making in maze-like environments. *Journal Name*, Volume(Issue), Pages. [DOI]
+If you use NaviGraph, please cite:
 
-*(Update when publication is available)*
+> Iton, A. K., Iton, E., Michaelson, D. M., & Blinder, P. (Year). NaviGraph: A graph-based framework for spatial decision-making analysis in maze-like environments. *Journal Name*, Volume(Issue), Pages. [DOI]
+
+*(Update citation upon publication.)*
 
 ---
 
 ## 🙌 Contributing
 
-Pull requests and issue reports are welcome!
+Contributions, issue reports, and feature requests are welcome! Please open issues or submit pull requests.
 
 ---
 
 ## 📜 License
 
-Licensed under the MIT License. See [LICENSE](LICENSE).
+Licensed under the MIT License. See [LICENSE](LICENSE) for more details.
