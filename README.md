@@ -9,7 +9,6 @@
 
 ---
 
-![NaviGraph Pipeline] 
 <p align="left">
   <img src="/docs/images/software_pipeline.png)  
 
