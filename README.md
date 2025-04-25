@@ -12,6 +12,7 @@
 <p align="left">
   <img src="/docs/images/software_pipeline.png" alt="NaviGraph pipeline"/> 
 </p>
+
 ---
 
 ## ⚙️ Workflow
@@ -96,7 +97,8 @@ Refer to [`examples/configs/base_config.yaml`](configs/base_config.yaml).
 
 If you use NaviGraph, please cite:
 
-> Iton, A. K., Iton, E., Michaelson, D. M., & Blinder, P. (Year). NaviGraph: A graph-based framework for spatial decision-making analysis in maze-like environments. *Journal Name*, Volume(Issue), Pages. [DOI]
+> Iton, A. K., Iton, E., Michaelson, D. M., & Blinder, P. (Year). NaviGraph: A graph-based framework for multimodal analysis of spatial decision-making
+ *Journal Name*, Volume(Issue), Pages. [DOI]
 
 *(Update citation upon publication.)*
 
