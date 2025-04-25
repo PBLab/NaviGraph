@@ -10,7 +10,7 @@
 ---
 
 <p align="left">
-  <img src="/docs/images/software_pipeline.png) alt="NaviGraph pipeline"/> 
+  <img src="/docs/images/software_pipeline.png" alt="NaviGraph pipeline"/> 
 </p>
 ---
 
