@@ -2,17 +2,14 @@
   <img src="/docs/images/NaviGraph_logo_white_noback.png" alt="NaviGraph Logo" width="400"/>
 </p>
 
-<br>
-
-## **A framework for analyzing spatial decision-making by integrating multimodal data into a unified topological representation.**
+##A framework for analyzing spatial decision-making by integrating multimodal data into a unified topological representation.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- Add additional badges: PyPI, build status, coverage -->
 
 ---
 
-![NaviGraph Pipeline](https://raw.githubusercontent.com/your-username/navigraph/main/docs/images/pipeline_figure.png)  
-*Fig. 1: NaviGraph pipeline overview. (Replace with actual image path)*
+![NaviGraph Pipeline](https://raw.githubusercontent.com/your-username/navigraph/main/docs/images/software_pipeline.png)  
 
 ---
 
