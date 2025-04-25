@@ -4,50 +4,18 @@
 
 <br>
 
-# NaviGraph 🗺️: Navigation on the Graph
+# NaviGraph: Navigation on the Graph
 
-**A graph-based Python pipeline for comprehensive analysis of spatial decision-making in maze-like environments.**
+**A framework for integrating multimodal data into a unified graph-based representation of spatial decision-making. 
+By modeling decision points as nodes and paths as edges, NaviGraph enables structured, multilayered analysis of behavior, cognition, and neural dynamics.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- Add additional badges: PyPI, build status, coverage -->
 
 ---
 
-**NaviGraph** is designed to address challenges in analyzing complex, multimodal datasets from neuroscience experiments involving spatial navigation. Unlike classical approaches, NaviGraph integrates diverse data streams—behavior, neural activity, and physiological measurements—within a unified graph-based framework, revealing intricate cognitive dynamics that traditional methods may overlook.
-
 ![NaviGraph Pipeline](https://raw.githubusercontent.com/your-username/navigraph/main/docs/images/pipeline_figure.png)  
 *Fig. 1: NaviGraph pipeline overview. (Replace with actual image path)*
-
----
-
-## ✨ Key Features
-
-- **Graph-Based Modeling:** Represents maze decision points as nodes and navigational paths as edges, enabling robust topological analysis.
-- **Multi-Modal Integration:** Combines behavioral (DeepLabCut), neuronal (Minian calcium imaging), and physiological (head orientation) data seamlessly.
-- **Comprehensive Metrics:** Includes both classic (e.g., reward latency, velocity) and advanced topological metrics (path efficiency, wandering indices).
-- **Modular & Flexible:** Easily adaptable pipeline supports diverse maze configurations and experimental setups.
-- **Configuration-Driven:** Uses YAML configuration files via Hydra for effortless management of pipeline parameters and system modes.
-- **Extensible Framework:** Built-in registries facilitate quick addition of custom analysis functions and visualization modules.
-- **Advanced Visualization:** Powerful tools to visualize and interpret behavioral, neuronal, and physiological data directly on graph structures.
-
----
-
-## 🤔 Why Use NaviGraph?
-
-- **Enhanced Sensitivity:** Identify subtle behavioral and cognitive phenotypes undetected by standard metrics.
-- **Unified Analysis:** Analyze behavior, neural activity, and physiology within a coherent spatial context.
-- **Reproducible Research:** Standardized processing and clear documentation ensure reproducibility across studies.
-- **Intuitive Insights:** Graph-based visualizations simplify interpretation of complex navigational strategies.
-
----
-
-## 💡 Core Concepts
-
-NaviGraph transforms maze data into a **topological graph**:
-
-- **Nodes:** Key decision points in the maze.
-- **Edges:** Navigational paths between nodes.
-- **Data Layers:** Behavioral metrics, neuronal activity, physiological measures mapped directly onto graph elements.
 
 ---
 
