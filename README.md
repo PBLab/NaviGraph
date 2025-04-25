@@ -1,10 +1,8 @@
-<p align="center">
+<p align="left">
   <img src="/docs/images/NaviGraph_logo_white_noback.png" alt="NaviGraph Logo" width="400"/>
 </p>
 
 <br>
-
-# NaviGraph: Navigation on the Graph
 
 **A framework for integrating multimodal data into a unified graph-based representation of spatial decision-making. 
 By modeling decision points as nodes and paths as edges, NaviGraph enables structured, multilayered analysis of behavior, cognition, and neural dynamics.**
