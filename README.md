@@ -4,7 +4,7 @@
 
 <br>
 
-**A framework for analyzing spatial decision-making by integrating multimodal data into a unified topological representation.**
+## **A framework for analyzing spatial decision-making by integrating multimodal data into a unified topological representation.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- Add additional badges: PyPI, build status, coverage -->
