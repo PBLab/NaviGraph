@@ -4,8 +4,7 @@
 
 <br>
 
-**A framework for integrating multimodal data into a unified graph-based representation of spatial decision-making. 
-By modeling decision points as nodes and paths as edges, NaviGraph enables structured, multilayered analysis of behavior, cognition, and neural dynamics.**
+**A framework for analyzing spatial decision-making by integrating multimodal data into a unified topological representation.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 <!-- Add additional badges: PyPI, build status, coverage -->
