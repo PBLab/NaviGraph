@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="/docs/images/navigraph_logo.png" alt="NaviGraph Logo" width="400"/>
+  <img src="/docs/images/NaviGraph_logo_white_noback.png" alt="NaviGraph Logo" width="400"/>
 </p>
 
 <br>
