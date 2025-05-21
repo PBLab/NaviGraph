@@ -15,19 +15,6 @@
 
 ---
 
-## ⚙️ Workflow
-
-The pipeline is orchestrated by `SessionManager`:
-
-1. **Data Input:** Raw behavioral videos, neuronal recordings, physiological measurements.
-2. **Preprocessing:** Pose estimation (DeepLabCut), calcium trace extraction (MiniAn).
-3. **Registration:** Align and validate behavioral data with maze topology.
-4. **Data Integration:** Synchronize data streams, stored per session (`.pkl` format).
-5. **Analysis:** Compute classic and topological metrics.
-6. **Visualization & Aggregation:** Generate visual insights and aggregate results across experimental conditions.
-
----
-
 ## 🚀 Installation
 **Clone the repository**
 
@@ -92,29 +79,6 @@ To get started, copy `configs/navigraph_config.yaml`, update relevant paths, sel
 
 ```bash
 python run.py
-```
----
-
-## 📁 Project Structure
-
-```bash
-.
-├── configs/
-├── examples/
-├── docs/
-├── navigraph/
-│   ├── analysis/
-│   ├── modules/
-│   ├── session/
-│   ├── utils/
-│   └── session_manager.py
-├── scripts/
-├── tests/
-├── poetry.lock
-├── pyproject.toml
-├── README.md
-├── LICENSE
-└──  run.py
 ```
 
 ---
