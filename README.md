@@ -18,7 +18,7 @@
 ## 🚀 Installation
 **Clone the repository**
 
-`git clone https://github.com/your-username/navigraph.git`
+`git clone https://github.com/PBLab/NaviGraph.git`
 
 **Open a terminal and navigate to the project directory**
 
