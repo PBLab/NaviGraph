@@ -97,7 +97,7 @@ Refer to [`examples/configs/base_config.yaml`](configs/base_config.yaml).
 
 If you use NaviGraph, please cite:
 
-> Iton, A. K., Iton, E., Michaelson, D. M., & Blinder, P. (Year). NaviGraph: A graph-based framework for multimodal analysis of spatial decision-making
+> Iton, A. K., Iton, E., Michaelson, D. M., & Blinder, P. (2025). NaviGraph: A graph-based framework for multimodal analysis of spatial decision-making. bioRxiv
 
 ---
 
