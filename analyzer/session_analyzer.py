@@ -99,7 +99,7 @@ class SessionAnalyzer(object):
         return times_between_a_to_b
 
     @analyze_session
-    def velocity_a_to_b(self, sess: Session, a: int, b: int, min_nodes_on_path: int = 0):
+    def velocity_a_to_b(self, sess: Session, a: int, b: int, min_nodes_on_path: int = 0, bodypart='Midline_middle'):
         """
         Return a list of velocities in meter/sec that describes the average velocity all trajectories
         between tile a and b.
@@ -108,21 +108,37 @@ class SessionAnalyzer(object):
         :param b:
         :return:
         """
-        df = sess.get_df(self.cfg.location_settings.bodypart)
+        # For velocity calculation use a stable bodypart - which reflects the movement of the animal
+        df = sess.get_df(bodypart)
+
+        # get x and y coordinates in the map domain
+        df[['x_map', 'y_map']] = df.index.to_series().apply(lambda idx: sess.get_map_coords(idx, bodypart)).apply(
+            pd.Series)
+
+        # drop any rows in which mapped coordinates are invalid
+        df = df[~((df['x'].isna()) & (df['y'].isna()))]
+        df = df[~((df['x_map'] == -1) & (df['y_map'] == -1))]
+
+        # Calculate the time intervals between a and b
         condition.threshold = min_nodes_on_path
         a_to_b_indices = a_to_b(df, TILE_ID, a, b, condition)
-
         times_between_a_to_b = [(ind_b + 1 - ind_a) * (1 / sess.session_stream_info[FPS]) for (ind_a, ind_b) in
                                 a_to_b_indices]
 
+        # Calculate the path length between a and b
         path_traveled_between_a_to_b = []
         for ind_a, ind_b in a_to_b_indices:
-            path_segments_length_pixels = ((df.iloc[ind_a:ind_b + 1].x.diff() ** 2) +
-                                           (df.iloc[ind_a:ind_b + 1].y.diff() ** 2)) ** 0.5
+            # calculate the path length in pixels
+            path_segments_length_pixels = ((df.loc[ind_a:ind_b + 1].x_map.diff() ** 2) +
+                                           (df.loc[ind_a:ind_b + 1].y_map.diff() ** 2)) ** 0.5
+
+            # convert path length to meters
             total_path_length_meters = path_segments_length_pixels.sum() / sess.map_labeler.pixel_to_meter
+
+            # append the velocity to the list
             path_traveled_between_a_to_b.append(total_path_length_meters)
 
-        return list(np.array(path_traveled_between_a_to_b)/np.array(times_between_a_to_b))
+        return list(np.array(path_traveled_between_a_to_b) / np.array(times_between_a_to_b))
 
     @analyze_session
     def num_nodes_in_path(self, sess: Session, a: int, b: int, min_nodes_on_path: int = 0,
@@ -326,5 +342,4 @@ class SessionAnalyzer(object):
                 raw_df.to_pickle(os.path.join(output_path, sess._session_name + '_raw.pkl'))
 
         return df
-
 
