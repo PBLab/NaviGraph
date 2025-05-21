@@ -87,7 +87,7 @@ python run.py
 
 If you use NaviGraph, please cite:
 
-> Iton, A. K., Iton, E., Michaelson, D. M., & Blinder, P. (2025). NaviGraph: A graph-based framework for multimodal analysis of spatial decision-making. bioRxiv
+> Koren Iton, A., Iton, E., Michaelson, D. M., & Blinder, P. (2025). NaviGraph: A graph-based framework for multimodal analysis of spatial decision-making. bioRxiv
 
 ---
 
