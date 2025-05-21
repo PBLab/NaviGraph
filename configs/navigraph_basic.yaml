@@ -17,7 +17,7 @@ hydra:
 experiment_output_path: *experiment_dir
 
 # Running Mode
-system_running_mode: 'calibrate' # Either 'calibrate', 'test', 'visualize', 'analyze' or a combination ex: 'calibrate&analyze'
+system_running_mode: 'analyze' # Either 'calibrate', 'test', 'visualize', 'analyze' or a combination ex: 'calibrate&analyze'
 
 # Components configurations
 calibrator_parameters:
@@ -45,7 +45,7 @@ map_settings:
   pixel_to_meter: 2279.4117647058824
 
 location_settings:
-  bodypart: 'Nose' # 'nose', 'stomach' , 'tailbase'. . . we can also implement 'mean', 'median' or weighted statistics or set location order (nose, then tail then other ....)
+  bodypart: 'Nose' # Bodypart of intrest as written in your pose estimation .h5 file, you can also implement 'mean', 'median' or weighted statistics or set location order (nose, then tail then other ....)
   likelihood: 0.3
 
 graph:
@@ -76,7 +76,7 @@ learning_start_tile_id: &learning_start_tile_id 145
 analyze:
   metrics:
     time_to_reward: {func_name: 'time_a_to_b', args: {a: *learning_start_tile_id, b: *reward_tile_id} } # learning session
-    velocity_to_reward: { func_name: 'velocity_a_to_b', args: { a: *learning_start_tile_id, b: *reward_tile_id } } # learning session
+    velocity_to_reward: { func_name: 'velocity_a_to_b', args: { a: *learning_start_tile_id, b: *reward_tile_id, bodypart: 'Midline_middle' } } # learning session
     exploration_percentage: {func_name: 'exploration_percentage'}
     topological_distance_to_reward: {func_name: 'num_nodes_in_path', args: {a: *learning_start_tile_id, b: *reward_tile_id, min_frame_rep: 5}}
     exploration_to_reward: {func_name: 'num_nodes_in_path', args: {a: *learning_start_tile_id, b: *reward_tile_id, mode: 'exploration'} }

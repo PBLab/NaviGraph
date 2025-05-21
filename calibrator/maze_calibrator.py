@@ -34,7 +34,7 @@ class MazeCalibrator(object):
         if not ret:
             raise ValueError(f"Problem loading path: {path}")
 
-        print("Hello, Maze-Master. Please choose a minimum of 4 points. Press 'Enter' when done:")
+        print("Hello. Please choose a minimum of 4 points. Press 'Enter' when done:")
         points_captured = np.round(np.array(self.points_catcher.capture_points(frame)))
         print(f"Points captured: {points_captured}")
 
