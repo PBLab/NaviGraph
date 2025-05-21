@@ -16,17 +16,41 @@
 ---
 
 ## 🚀 Installation
-**Clone the repository**
 
-`git clone https://github.com/PBLab/NaviGraph.git`
+**🧠 Requirements**
 
-**Open a terminal and navigate to the project directory**
+- Python **>=3.9**
 
-`cd /path/to/your/project`
+---
 
-**Install dependencies**
+**1. Clone the repository**
 
-`pip install -r requirements.txt`
+```bash
+git clone https://github.com/PBLab/NaviGraph.git
+```
+
+**2. Navigate to the project directory**
+
+```bash
+cd NaviGraph
+```
+
+**3. Create and activate a virtual environment**
+
+```bash
+# Create a new virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+source venv/bin/activate  # On macOS/Linux
+venv\Scripts\activate     # On Windows
+```
+
+**4. Install dependencies**
+
+```bash
+pip install -r requirements.txt
+```
 
 ---
 
