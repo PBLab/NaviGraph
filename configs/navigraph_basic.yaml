@@ -70,7 +70,7 @@ graph:
 
 # Tile id constants
 reward_tile_id: &reward_tile_id 273
-learning_start_tile_id: &learning_start_tile_id 145
+learning_start_tile_id: &learning_start_tile_id 144
 #memory_start_tile_id: &memory_start_tile_id 145
 
 analyze:
