@@ -15,9 +15,9 @@
 
 ---
 
-## 🚀 Installation
+## Installation
 
-**🧠 Requirements**
+**Requirements**
 
 - Python **>=3.9**
 
@@ -63,7 +63,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🔧 Configuration Overview
+## Configuration Overview
 
 Pipeline behavior is controlled via a YAML config file located at `configs/navigraph_config.yaml`.  
 
@@ -107,7 +107,7 @@ python run.py
 
 ---
 
-## 📄 Citation
+## Citation
 
 If you use NaviGraph, please cite:
 
@@ -115,12 +115,12 @@ If you use NaviGraph, please cite:
 
 ---
 
-## 🙌 Contributing
+## Contributing
 
 Contributions, issue reports, and feature requests are welcome! Please open issues or submit pull requests.
 
 ---
 
-## 📜 License
+## License
 
 Licensed under the MIT License. See [LICENSE](LICENSE) for more details.
