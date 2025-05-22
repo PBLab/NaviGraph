@@ -61,7 +61,7 @@ pip install -r requirements.txt
 3. **Run the pipeline**  Execute the main script:
    `python run.py`
 
-Note: Run the pipeline as-is to try it out on demo data—no setup needed! Great for testing or exploring the system mode features before using your own data.
+Note: For testing or exploring the system mode features run the pipeline as-is to try it out on included demo data. 
 
 ---
 
