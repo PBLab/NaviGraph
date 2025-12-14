@@ -162,7 +162,7 @@ class SessionVisualizer:
                 self.logger.info("🎬 Real-time visualization enabled - press 'q' to quit, space or 'p' to pause/resume")
                 window_name = f"NaviGraph - {output_name}"
                 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-                cv2.resizeWindow(window_name, width//2, height//2)  # Display at half size for performance
+                cv2.resizeWindow(window_name, original_width//2, original_height//2)  # Display at half size for performance
                 paused = False
             
             # Process frames
