@@ -138,8 +138,10 @@ class GraphLocationPlugin(NaviGraphPlugin):
         # Look for _x columns and extract bodypart names
         for col in dataframe.columns:
             if col.endswith('_x'):
-                bodypart = col.replace('_x', '')
-                # Verify corresponding _y column exists
+                bodypart = col[:-2]  # strip '_x'
+                # Skip derived columns from other plugins (e.g. nose_map_x from map_location)
+                if '_map' in bodypart or '_calibrated' in bodypart:
+                    continue
                 if f'{bodypart}_y' in dataframe.columns:
                     bodyparts.add(bodypart)
         
