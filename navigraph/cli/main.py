@@ -1016,140 +1016,284 @@ def setup_graph(config_path: Path):
 @setup.command('calibration')
 @click.argument('config_path', type=click.Path(exists=True, path_type=Path))
 @click.option("--test", is_flag=True, help="Test existing calibration instead of creating new one")
-def setup_calibration(config_path: Path, test: bool):
+@click.option("--batch", is_flag=True, help="Calibrate each session individually")
+@click.option("--shared", is_flag=True, help="Calibrate once using the first session, apply to all")
+@click.option("--overwrite", is_flag=True, help="Overwrite existing calibrations in batch/shared mode")
+def setup_calibration(config_path: Path, test: bool, batch: bool, shared: bool, overwrite: bool):
     """Setup camera calibration for spatial coordinate transformation.
-    
+
     Launch interactive calibration tool to establish correspondence between
     camera view and map coordinates. This needs to be done whenever the
     camera position or angle changes.
-    
+
     CONFIG_PATH: Path to configuration file
-    
+
+    \b
+    Modes:
+      (default)   Single session calibration using setup.spatial_image_for_calibration
+      --batch     Calibrate each discovered session individually
+      --shared    Calibrate once using the first session's video, copy to all sessions
+
     \b
     Example:
       navigraph setup calibration config.yaml
-    
+      navigraph setup calibration config.yaml --batch
+      navigraph setup calibration config.yaml --shared --overwrite
+
     \b
     Required config sections:
       map_path: Path to the map image
       calibrator_parameters: Calibration settings
+      experiment_path: (for --batch/--shared) Root directory containing session folders
     """
+    if batch and shared:
+        click.echo("Error: --batch and --shared are mutually exclusive.", err=True)
+        sys.exit(1)
+
     try:
-        click.echo(f"📋 Loading configuration from: {config_path}")
-        
+        click.echo(f"Loading configuration from: {config_path}")
+
         # Load configuration
         config = OmegaConf.load(config_path)
         config = process_config_path(config_path, OmegaConf.to_container(config))
-        
+
         # Get map path from config (check setup section first, then root for backward compatibility)
         setup_config = config.get('setup', {})
         map_path = setup_config.get('map_path') or config.get('map_path')
         if not map_path:
             click.echo("Error: map_path not found in config. Add it to the setup section or root level.", err=True)
             sys.exit(1)
-        
+
         # Resolve map path relative to config directory
         if not Path(map_path).is_absolute():
             map_path = Path(config['_config_dir']) / map_path
-        
-        click.echo(f"🗺️  Map image: {map_path}")
-        
-        # Get spatial image for calibration (from setup section)
-        setup_config = config.get('setup', {})
-        spatial_image_path = setup_config.get('spatial_image_for_calibration')
-        
-        if not spatial_image_path:
-            click.echo("Error: spatial_image_for_calibration not found in setup section.", err=True)
-            click.echo("Add it to config: setup.spatial_image_for_calibration: /path/to/video/or/image", err=True)
-            sys.exit(1)
-        
-        # Resolve spatial image path relative to config directory
-        if not Path(spatial_image_path).is_absolute():
-            spatial_image_path = Path(config['_config_dir']) / spatial_image_path
-        
-        click.echo(f"📹 Spatial source: {spatial_image_path}")
-        
+
+        click.echo(f"Map image: {map_path}")
+
         # Get calibration settings
         calib_params = config.get('calibrator_parameters', {})
         method = calib_params.get('registration_method', 'homography_ransac')
-        
+
         # Convert legacy method name
         if method == 'homography&ransac':
             method = 'homography_ransac'
-        
+
         min_points = calib_params.get('num_calibration_points', 4)
-        
+
         if test:
-            # Test mode - validate existing calibration
-            click.echo("🧪 Testing existing calibration matrix")
-            
-            # Get calibration matrix path from config
-            setup_config = config.get('setup', {})
-            calibration_matrix_path = setup_config.get('calibration_matrix')
-            
-            if not calibration_matrix_path:
-                # Default to resources directory
-                calibration_matrix_path = './resources/transform_matrix.npy'
-            
-            # Resolve relative to config directory
-            if not Path(calibration_matrix_path).is_absolute():
-                calibration_matrix_path = Path(config['_config_dir']) / calibration_matrix_path
-            
-            # Check if calibration matrix exists
-            if not Path(calibration_matrix_path).exists():
-                click.echo(f"❌ Calibration matrix not found: {calibration_matrix_path}", err=True)
-                click.echo("💡 Run calibration without --test to create one first", err=True)
-                sys.exit(1)
-            
-            click.echo(f"📊 Testing calibration: {calibration_matrix_path}")
-            
-            # Import and run calibration tester
-            from ..core.calibration import CalibrationTester
-            
-            tester = CalibrationTester()
-            tester.test_calibration(
-                spatial_image_path=spatial_image_path,
-                map_image_path=map_path,
-                calibration_matrix_path=calibration_matrix_path
-            )
-            
-            click.echo("✅ Calibration test completed")
-            
+            _run_calibration_test(config, setup_config, map_path)
+        elif batch:
+            _run_batch_calibration(config, map_path, method, min_points, overwrite, shared_mode=False)
+        elif shared:
+            _run_batch_calibration(config, map_path, method, min_points, overwrite, shared_mode=True)
         else:
-            # Create mode - interactive calibration
-            click.echo(f"🎯 Method: {method}")
-            click.echo(f"🎯 Minimum points: {min_points}")
-            
-            # Import and run interactive calibration
-            from ..core.calibration import InteractiveCalibrator
-            
-            calibrator = InteractiveCalibrator()
-            
-            # Run calibration
+            _run_single_calibration(config, setup_config, map_path, method, min_points)
+
+    except Exception as e:
+        click.echo(f"Calibration failed: {str(e)}", err=True)
+        if '--verbose' in sys.argv:
+            import traceback
+            click.echo(traceback.format_exc(), err=True)
+        sys.exit(1)
+
+
+def _run_calibration_test(config, setup_config, map_path):
+    """Run calibration test mode."""
+    click.echo("Testing existing calibration matrix")
+
+    spatial_image_path = setup_config.get('spatial_image_for_calibration')
+    if not spatial_image_path:
+        click.echo("Error: spatial_image_for_calibration not found in setup section.", err=True)
+        sys.exit(1)
+
+    if not Path(spatial_image_path).is_absolute():
+        spatial_image_path = Path(config['_config_dir']) / spatial_image_path
+
+    # Get calibration matrix path from config
+    calibration_matrix_path = setup_config.get('calibration_matrix')
+
+    if not calibration_matrix_path:
+        calibration_matrix_path = './resources/transform_matrix.npy'
+
+    if not Path(calibration_matrix_path).is_absolute():
+        calibration_matrix_path = Path(config['_config_dir']) / calibration_matrix_path
+
+    if not Path(calibration_matrix_path).exists():
+        click.echo(f"Calibration matrix not found: {calibration_matrix_path}", err=True)
+        click.echo("Run calibration without --test to create one first", err=True)
+        sys.exit(1)
+
+    click.echo(f"Testing calibration: {calibration_matrix_path}")
+
+    from ..core.calibration import CalibrationTester
+
+    tester = CalibrationTester()
+    tester.test_calibration(
+        spatial_image_path=spatial_image_path,
+        map_image_path=map_path,
+        calibration_matrix_path=calibration_matrix_path
+    )
+
+    click.echo("Calibration test completed")
+
+
+def _run_single_calibration(config, setup_config, map_path, method, min_points):
+    """Run single session calibration (original behavior)."""
+    spatial_image_path = setup_config.get('spatial_image_for_calibration')
+
+    if not spatial_image_path:
+        click.echo("Error: spatial_image_for_calibration not found in setup section.", err=True)
+        click.echo("Add it to config: setup.spatial_image_for_calibration: /path/to/video/or/image", err=True)
+        sys.exit(1)
+
+    if not Path(spatial_image_path).is_absolute():
+        spatial_image_path = Path(config['_config_dir']) / spatial_image_path
+
+    click.echo(f"Spatial source: {spatial_image_path}")
+    click.echo(f"Method: {method}")
+    click.echo(f"Minimum points: {min_points}")
+
+    from ..core.calibration import InteractiveCalibrator
+
+    calibrator = InteractiveCalibrator()
+
+    calibration_result = calibrator.calibrate_camera_to_map(
+        camera_source=spatial_image_path,
+        map_image_path=map_path,
+        method=method,
+        min_points=min_points,
+        show_preview=True
+    )
+
+    # Save to resources directory
+    output_dir = Path(config['_config_dir']) / 'resources'
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    matrix_path = output_dir / 'transform_matrix.npy'
+    calibration_result.save(matrix_path)
+
+    click.echo("Calibration completed successfully!")
+
+
+def _find_session_video(session_path: Path) -> 'Optional[Path]':
+    """Find the first .avi video file in a session directory.
+
+    Args:
+        session_path: Path to the session directory
+
+    Returns:
+        Path to the first .avi file found, or None
+    """
+    avi_files = sorted(session_path.glob("*.avi"))
+    if avi_files:
+        return avi_files[0]
+    return None
+
+
+def _run_batch_calibration(config, map_path, method, min_points, overwrite, shared_mode):
+    """Run batch or shared calibration across all sessions.
+
+    Args:
+        config: Loaded configuration dictionary
+        map_path: Path to the map image
+        method: Transform method string
+        min_points: Minimum calibration points
+        overwrite: Whether to overwrite existing calibrations
+        shared_mode: If True, calibrate once and copy to all sessions.
+                     If False, calibrate each session individually.
+    """
+    from ..core.file_discovery import FileDiscoveryEngine
+    from ..core.calibration import InteractiveCalibrator
+    import shutil
+
+    experiment_path = config.get('experiment_path')
+    if not experiment_path:
+        click.echo("Error: experiment_path not found in config. Required for --batch/--shared mode.", err=True)
+        sys.exit(1)
+
+    experiment_path = Path(experiment_path)
+    if not experiment_path.exists():
+        click.echo(f"Error: experiment_path does not exist: {experiment_path}", err=True)
+        sys.exit(1)
+
+    # Discover sessions
+    from loguru import logger as _logger
+    discovery = FileDiscoveryEngine(str(experiment_path), _logger)
+    session_names = discovery.discover_session_folders()
+
+    if not session_names:
+        click.echo("No sessions found in experiment directory.", err=True)
+        sys.exit(1)
+
+    click.echo(f"Found {len(session_names)} sessions")
+
+    # Determine output directory name from config (default: navigraph_output)
+    output_dir_name = config.get('output_directory_name', 'navigraph_output')
+
+    mode_label = "shared" if shared_mode else "batch"
+    click.echo(f"Running {mode_label} calibration across {len(session_names)} sessions")
+
+    calibrator = InteractiveCalibrator()
+    shared_result = None  # Stores the calibration result in shared mode
+
+    completed = 0
+    skipped = 0
+
+    for i, session_name in enumerate(session_names, 1):
+        session_path = experiment_path / session_name
+        output_dir = session_path / output_dir_name
+        matrix_path = output_dir / 'transform_matrix.npy'
+
+        # Check if calibration already exists
+        if matrix_path.exists() and not overwrite:
+            click.echo(f"[{i}/{len(session_names)}] {session_name} -- skipped (already calibrated)")
+            skipped += 1
+            continue
+
+        if shared_mode and shared_result is not None:
+            # In shared mode, copy the already-computed calibration
+            output_dir.mkdir(parents=True, exist_ok=True)
+            shared_result.save(matrix_path)
+            click.echo(f"[{i}/{len(session_names)}] {session_name} -- copied shared calibration")
+            completed += 1
+            continue
+
+        # Find video file for this session
+        video_path = _find_session_video(session_path)
+        if video_path is None:
+            click.echo(f"[{i}/{len(session_names)}] {session_name} -- skipped (no .avi file found)")
+            skipped += 1
+            continue
+
+        click.echo(f"[{i}/{len(session_names)}] {session_name} -- calibrating with {video_path.name}")
+
+        try:
             calibration_result = calibrator.calibrate_camera_to_map(
-                camera_source=spatial_image_path,
+                camera_source=video_path,
                 map_image_path=map_path,
                 method=method,
                 min_points=min_points,
                 show_preview=True
             )
-            
-            # Determine output directory (save to resources by default)
-            output_dir = Path(config['_config_dir']) / 'resources'
+
             output_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Save transformation matrix
-            matrix_path = output_dir / 'transform_matrix.npy'
             calibration_result.save(matrix_path)
-            
-            click.echo("✅ Interactive calibration completed successfully!")
-        
-    except Exception as e:
-        click.echo(f"❌ Calibration failed: {str(e)}", err=True)
-        if '--verbose' in sys.argv:
-            import traceback
-            click.echo(traceback.format_exc(), err=True)
-        sys.exit(1)
+            click.echo(f"  Saved: {matrix_path}")
+            completed += 1
+
+            if shared_mode:
+                shared_result = calibration_result
+                click.echo(f"  (shared mode: this calibration will be applied to remaining sessions)")
+
+        except ValueError as e:
+            if "cancelled" in str(e).lower():
+                click.echo(f"  Skipped (cancelled by user)")
+                skipped += 1
+                continue
+            else:
+                raise
+
+    click.echo(f"\n{mode_label.capitalize()} calibration complete: {completed} calibrated, {skipped} skipped")
 
 
 
