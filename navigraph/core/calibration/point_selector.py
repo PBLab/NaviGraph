@@ -1,4 +1,10 @@
-"""Interactive point selection UI for camera-to-map calibration."""
+"""Interactive point selection UI for camera-to-map calibration.
+
+Side-by-side display: click a point on the video (left), then the
+corresponding point on the map (right), alternating. Right-click to
+undo the last point. Press Enter when done (minimum 4 pairs),
+'r' to reset all, ESC to cancel.
+"""
 
 from typing import List, Tuple, Optional, NamedTuple
 import cv2
@@ -10,39 +16,41 @@ class Point(NamedTuple):
     """Represents a calibration point with coordinates."""
     x: float
     y: float
-    
+
     def as_tuple(self) -> Tuple[int, int]:
         """Return point as integer tuple for OpenCV."""
         return (int(self.x), int(self.y))
 
 
 class PointSelector:
-    """Interactive point selection with visual feedback and keyboard controls."""
-    
-    # Visual styling constants
-    POINT_RADIUS = 8
-    POINT_THICKNESS = 3
-    LINE_THICKNESS = 2
-    FONT_SCALE = 0.8
-    FONT_THICKNESS = 2
-    
-    # Colors (BGR format for OpenCV)
-    COLOR_SOURCE_POINT = (255, 100, 0)    # Blue
-    COLOR_TARGET_POINT = (0, 200, 0)      # Green  
-    COLOR_CONNECTION_LINE = (255, 255, 0) # Cyan
-    COLOR_TEXT = (255, 255, 255)          # White
-    COLOR_TEXT_BG = (0, 0, 0)             # Black
-    
+    """Side-by-side point selection: video on left, map on right.
+
+    Click alternates between source (video) and target (map).
+    Points are stored in original image coordinates, not display coordinates.
+    """
+
+    # Colors (BGR)
+    COLOR_SOURCE = (255, 100, 0)      # Blue-ish
+    COLOR_TARGET = (0, 200, 0)        # Green
+    COLOR_ACTIVE = (0, 200, 255)      # Yellow -- waiting for click
+    COLOR_LINE = (255, 255, 0)        # Cyan
+    COLOR_TEXT = (255, 255, 255)       # White
+    COLOR_TEXT_BG = (0, 0, 0)         # Black
+
     def __init__(self):
-        """Initialize point selector."""
         self.source_points: List[Point] = []
         self.target_points: List[Point] = []
-        self.current_stage = "source"  # "source" or "target"
-        self.display_image = None
-        self.original_source = None
-        self.original_target = None
-        self.window_name = "Calibration Point Selection"
-        
+        self._waiting_for = "source"  # "source" or "target"
+
+        # Layout info (set in _build_layout)
+        self._display_h = 0
+        self._display_w = 0
+        self._src_x0 = 0      # source image region in display
+        self._src_scale = 1.0
+        self._tgt_x0 = 0      # target image region in display
+        self._tgt_scale = 1.0
+        self._gap = 10         # pixel gap between images
+
     def select_corresponding_points(
         self,
         source_image: np.ndarray,
@@ -50,223 +58,230 @@ class PointSelector:
         min_points: int = 4,
         window_title: str = "NaviGraph Calibration"
     ) -> Tuple[List[Point], List[Point]]:
-        """Select corresponding points between source and target images.
-        
-        Args:
-            source_image: Source image (camera frame)
-            target_image: Target image (map)
-            min_points: Minimum number of points required
-            window_title: Window title for display
-            
+        """Select corresponding points on side-by-side images.
+
         Returns:
-            Tuple of (source_points, target_points)
-            
+            Tuple of (source_points, target_points) in original image coords.
+
         Raises:
-            ValueError: If user cancels or insufficient points selected
+            ValueError: If user cancels or insufficient points.
         """
         self.source_points = []
         self.target_points = []
-        self.original_source = source_image.copy()
-        self.original_target = target_image.copy()
-        self.window_name = window_title
-        
-        logger.info(f"Starting interactive calibration with minimum {min_points} points")
-        logger.info("Controls: Click to add point, Right-click to remove last, 'r' to reset, Enter to confirm, ESC to cancel")
-        
-        # First select points on source image  
-        self.current_stage = "source"
-        self._select_points_on_image(self.original_source, "image (at least 4 points)", min_points)
-        
-        if not self.source_points:
-            raise ValueError("Calibration cancelled by user")
-            
-        # Then select EXACTLY the same number of corresponding points on target image
-        self.current_stage = "target" 
-        actual_points_needed = len(self.source_points)
-        self._select_points_on_image(self.original_target, f"map ({actual_points_needed} points to match)", actual_points_needed, exact_points=True)
-        
-        if len(self.target_points) != len(self.source_points):
-            raise ValueError("Calibration cancelled or point count mismatch")
-        
-        logger.info(f"Successfully selected {len(self.source_points)} point pairs")
-        return self.source_points, self.target_points
-    
-    def _select_points_on_image(self, image: np.ndarray, image_type: str, required_points: int, exact_points: bool = False) -> None:
-        """Handle point selection on a single image.
-        
-        Args:
-            image: Image to select points on
-            image_type: Description for user ("image" or "map")
-            required_points: Number of points needed
-            exact_points: If True, user must select exactly this many points (no more)
-        """
-        self.display_image = image.copy()
-        
-        # Setup window
-        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback(self.window_name, self._mouse_callback)
-        
-        current_points = self.source_points if self.current_stage == "source" else self.target_points
-        
+        self._waiting_for = "source"
+        self._src_orig = source_image.copy()
+        self._tgt_orig = target_image.copy()
+
+        self._build_layout(source_image, target_image)
+
+        window = window_title
+        cv2.namedWindow(window, cv2.WINDOW_NORMAL)
+        cv2.setMouseCallback(window, self._mouse_callback)
+
+        logger.info(
+            f"Side-by-side calibration: click matching points alternating left/right. "
+            f"Min {min_points} pairs. Enter=confirm, R=reset, ESC=cancel, Right-click=undo"
+        )
+
         while True:
-            # Create display with current points and instructions
-            display = self.display_image.copy()
-            self._draw_points(display, current_points, self.current_stage)
-            self._draw_instructions(display, image_type, required_points, len(current_points), exact_points)
-            
-            cv2.imshow(self.window_name, display)
-            key = cv2.waitKey(1) & 0xFF
-            
-            if key == 27:  # ESC - Cancel
-                logger.info("Calibration cancelled by user")
+            display = self._render()
+            n_pairs = min(len(self.source_points), len(self.target_points))
+            self._draw_status(display, n_pairs, min_points)
+            cv2.imshow(window, display)
+
+            key = cv2.waitKey(30) & 0xFF
+
+            if key == 27:  # ESC
                 cv2.destroyAllWindows()
-                if self.current_stage == "source":
-                    self.source_points = []
-                else:
-                    self.target_points = []
-                return
-                
-            elif key == 13 or key == 10:  # Enter - Confirm
-                if exact_points:
-                    # Must have exactly the required number
-                    if len(current_points) == required_points:
-                        logger.info(f"Confirmed {len(current_points)} points on {image_type}")
-                        break
-                    else:
-                        logger.warning(f"Need exactly {required_points} points, have {len(current_points)}")
-                else:
-                    # Must have at least the required number
-                    if len(current_points) >= required_points:
-                        logger.info(f"Confirmed {len(current_points)} points on {image_type}")
-                        break
-                    else:
-                        logger.warning(f"Need at least {required_points} points, have {len(current_points)}")
-                    
-            elif key == ord('r') or key == ord('R'):  # Reset
-                logger.info(f"Reset all points on {image_type}")
-                current_points.clear()
-                self.display_image = image.copy()
-                
+                raise ValueError("Calibration cancelled by user")
+
+            elif key in (13, 10):  # Enter
+                if n_pairs >= min_points:
+                    # Trim to equal length
+                    n = min(len(self.source_points), len(self.target_points))
+                    self.source_points = self.source_points[:n]
+                    self.target_points = self.target_points[:n]
+                    cv2.destroyAllWindows()
+                    logger.info(f"Confirmed {n} point pairs")
+                    return self.source_points, self.target_points
+
+            elif key in (ord('r'), ord('R')):
+                self.source_points.clear()
+                self.target_points.clear()
+                self._waiting_for = "source"
+                logger.info("Reset all points")
+
         cv2.destroyAllWindows()
-    
+        return self.source_points, self.target_points
+
+    # ---- layout ----
+
+    def _build_layout(self, src: np.ndarray, tgt: np.ndarray) -> None:
+        """Compute how to place both images side-by-side at matched height."""
+        sh, sw = src.shape[:2]
+        th, tw = tgt.shape[:2]
+
+        # Scale both to the same height (use the larger)
+        target_h = max(sh, th)
+        self._src_scale = target_h / sh
+        self._tgt_scale = target_h / th
+
+        src_disp_w = int(sw * self._src_scale)
+        tgt_disp_w = int(tw * self._tgt_scale)
+
+        self._display_h = target_h
+        self._display_w = src_disp_w + self._gap + tgt_disp_w
+        self._src_x0 = 0
+        self._src_disp_w = src_disp_w
+        self._tgt_x0 = src_disp_w + self._gap
+        self._tgt_disp_w = tgt_disp_w
+
+    def _render(self) -> np.ndarray:
+        """Build the side-by-side display with all points drawn."""
+        canvas = np.zeros((self._display_h, self._display_w, 3), dtype=np.uint8)
+
+        # Resize and place source
+        src_resized = cv2.resize(self._src_orig, (self._src_disp_w, self._display_h))
+        canvas[:, self._src_x0:self._src_x0 + self._src_disp_w] = src_resized
+
+        # Resize and place target
+        tgt_resized = cv2.resize(self._tgt_orig, (self._tgt_disp_w, self._display_h))
+        canvas[:, self._tgt_x0:self._tgt_x0 + self._tgt_disp_w] = tgt_resized
+
+        # Draw separator line
+        sep_x = self._src_disp_w + self._gap // 2
+        cv2.line(canvas, (sep_x, 0), (sep_x, self._display_h), (80, 80, 80), 2)
+
+        # Marker size scaled to display
+        r = max(4, int(8 * self._display_h / 800))
+        t = max(1, int(2 * self._display_h / 800))
+        fs = max(0.4, 0.7 * self._display_h / 800)
+        ft = max(1, int(2 * self._display_h / 800))
+
+        # Draw completed pairs with connecting lines
+        n_pairs = min(len(self.source_points), len(self.target_points))
+        for i in range(n_pairs):
+            sp = self.source_points[i]
+            tp = self.target_points[i]
+            sd = self._src_to_display(sp)
+            td = self._tgt_to_display(tp)
+
+            cv2.circle(canvas, sd, r, self.COLOR_SOURCE, t)
+            cv2.circle(canvas, td, r, self.COLOR_TARGET, t)
+            cv2.line(canvas, sd, td, self.COLOR_LINE, max(1, t // 2))
+            self._draw_number(canvas, sd, i + 1, fs, ft)
+            self._draw_number(canvas, td, i + 1, fs, ft)
+
+        # Draw unpaired source point (if we clicked source but not yet target)
+        if len(self.source_points) > len(self.target_points):
+            sp = self.source_points[-1]
+            sd = self._src_to_display(sp)
+            cv2.circle(canvas, sd, r, self.COLOR_ACTIVE, t + 1)
+            self._draw_number(canvas, sd, len(self.source_points), fs, ft)
+
+        # Highlight which side is active
+        if self._waiting_for == "source":
+            label, lx = "Click VIDEO", 10
+        else:
+            label, lx = "Click MAP", self._tgt_x0 + 10
+        cv2.putText(canvas, label, (lx, self._display_h - 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, fs * 1.2, self.COLOR_ACTIVE, ft + 1)
+
+        # Labels
+        cv2.putText(canvas, "VIDEO", (10, int(30 * self._display_h / 800)),
+                    cv2.FONT_HERSHEY_SIMPLEX, fs, self.COLOR_TEXT, ft)
+        cv2.putText(canvas, "MAP", (self._tgt_x0 + 10, int(30 * self._display_h / 800)),
+                    cv2.FONT_HERSHEY_SIMPLEX, fs, self.COLOR_TEXT, ft)
+
+        return canvas
+
+    def _draw_number(self, img, pos, num, fs, ft):
+        text = str(num)
+        tsz = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, fs, ft)[0]
+        tx = pos[0] - tsz[0] // 2
+        ty = pos[1] - int(12 * self._display_h / 800)
+        cv2.rectangle(img, (tx - 2, ty - tsz[1] - 2), (tx + tsz[0] + 2, ty + 2),
+                      self.COLOR_TEXT_BG, -1)
+        cv2.putText(img, text, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, fs, self.COLOR_TEXT, ft)
+
+    def _draw_status(self, img, n_pairs, min_points):
+        """Draw status bar at top."""
+        if n_pairs >= min_points:
+            status = f"{n_pairs} pairs -- press Enter to confirm (or keep adding)"
+            color = self.COLOR_TARGET
+        else:
+            status = f"{n_pairs}/{min_points} pairs -- need {min_points - n_pairs} more"
+            color = self.COLOR_TEXT
+
+        fs = max(0.4, 0.6 * self._display_h / 800)
+        ft = max(1, int(2 * self._display_h / 800))
+        tsz = cv2.getTextSize(status, cv2.FONT_HERSHEY_SIMPLEX, fs, ft)[0]
+
+        # Background bar
+        overlay = img.copy()
+        cv2.rectangle(overlay, (0, 0), (img.shape[1], tsz[1] + 16), self.COLOR_TEXT_BG, -1)
+        cv2.addWeighted(overlay, 0.7, img, 0.3, 0, img)
+        cv2.putText(img, status, (10, tsz[1] + 8), cv2.FONT_HERSHEY_SIMPLEX, fs, color, ft)
+
+    # ---- coordinate transforms ----
+
+    def _src_to_display(self, pt: Point) -> Tuple[int, int]:
+        return (int(pt.x * self._src_scale) + self._src_x0,
+                int(pt.y * self._src_scale))
+
+    def _tgt_to_display(self, pt: Point) -> Tuple[int, int]:
+        return (int(pt.x * self._tgt_scale) + self._tgt_x0,
+                int(pt.y * self._tgt_scale))
+
+    def _display_to_src(self, dx: int, dy: int) -> Optional[Point]:
+        """Convert display coords to source image coords, or None if outside."""
+        if self._src_x0 <= dx < self._src_x0 + self._src_disp_w:
+            return Point((dx - self._src_x0) / self._src_scale,
+                         dy / self._src_scale)
+        return None
+
+    def _display_to_tgt(self, dx: int, dy: int) -> Optional[Point]:
+        """Convert display coords to target image coords, or None if outside."""
+        if self._tgt_x0 <= dx < self._tgt_x0 + self._tgt_disp_w:
+            return Point((dx - self._tgt_x0) / self._tgt_scale,
+                         dy / self._tgt_scale)
+        return None
+
+    # ---- mouse ----
+
     def _mouse_callback(self, event, x, y, flags, param):
-        """Handle mouse events for point selection."""
-        current_points = self.source_points if self.current_stage == "source" else self.target_points
-        
         if event == cv2.EVENT_LBUTTONDOWN:
-            # Check if we're in exact mode and already have enough points
-            exact_mode = self.current_stage == "target"  # Target stage requires exact points
-            if exact_mode:
-                target_count = len(self.source_points)  # Must match source count
-                if len(current_points) >= target_count:
-                    logger.debug(f"Already have {target_count} points, cannot add more")
-                    return
-            
-            # Add point
-            new_point = Point(x, y)
-            current_points.append(new_point)
-            logger.debug(f"Added point {len(current_points)}: ({x}, {y})")
-            
+            if self._waiting_for == "source":
+                pt = self._display_to_src(x, y)
+                if pt is not None:
+                    self.source_points.append(pt)
+                    self._waiting_for = "target"
+                    logger.debug(f"Source point {len(self.source_points)}: ({pt.x:.0f}, {pt.y:.0f})")
+
+            elif self._waiting_for == "target":
+                pt = self._display_to_tgt(x, y)
+                if pt is not None:
+                    self.target_points.append(pt)
+                    self._waiting_for = "source"
+                    logger.debug(f"Target point {len(self.target_points)}: ({pt.x:.0f}, {pt.y:.0f})")
+
         elif event == cv2.EVENT_RBUTTONDOWN:
-            # Remove last point
-            if current_points:
-                removed = current_points.pop()
-                logger.debug(f"Removed point: ({removed.x}, {removed.y})")
-                
-                # Redraw image without removed point
-                if self.current_stage == "source":
-                    self.display_image = self.original_source.copy()
-                else:
-                    self.display_image = self.original_target.copy()
-    
-    def _draw_points(self, image: np.ndarray, points: List[Point], stage: str) -> None:
-        """Draw points on image with numbering."""
-        color = self.COLOR_SOURCE_POINT if stage == "source" else self.COLOR_TARGET_POINT
-        
-        for i, point in enumerate(points):
-            # Draw point circle
-            cv2.circle(image, point.as_tuple(), self.POINT_RADIUS, color, self.POINT_THICKNESS)
-            
-            # Draw point number
-            text = str(i + 1)
-            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, self.FONT_SCALE, self.FONT_THICKNESS)[0]
-            text_x = point.as_tuple()[0] - text_size[0] // 2
-            text_y = point.as_tuple()[1] - self.POINT_RADIUS - 10
-            
-            # Draw text background
-            cv2.rectangle(
-                image,
-                (text_x - 3, text_y - text_size[1] - 3),
-                (text_x + text_size[0] + 3, text_y + 3),
-                self.COLOR_TEXT_BG,
-                -1
-            )
-            
-            # Draw text
-            cv2.putText(
-                image, text, (text_x, text_y),
-                cv2.FONT_HERSHEY_SIMPLEX, self.FONT_SCALE, self.COLOR_TEXT, self.FONT_THICKNESS
-            )
-    
-    def _draw_instructions(
-        self, 
-        image: np.ndarray, 
-        image_type: str, 
-        required_points: int, 
-        current_count: int,
-        exact_points: bool = False
-    ) -> None:
-        """Draw minimal status information on image."""
-        # Create status text based on mode
-        if exact_points:
-            if current_count < required_points:
-                status_text = f"Select point {current_count + 1}/{required_points} on {image_type}"
-            else:
-                status_text = f"Selected {current_count}/{required_points} points on {image_type}"
-        else:
-            status_text = f"Selected {current_count} points on {image_type}"
-        
-        # Draw small status bar at top
-        text_size = cv2.getTextSize(status_text, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
-        
-        # Semi-transparent background
-        overlay = image.copy()
-        cv2.rectangle(
-            overlay,
-            (0, 0),
-            (image.shape[1], text_size[1] + 20),
-            self.COLOR_TEXT_BG,
-            -1
-        )
-        cv2.addWeighted(overlay, 0.7, image, 0.3, 0, image)
-        
-        # Status text
-        cv2.putText(
-            image, status_text, (10, text_size[1] + 10),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.8, self.COLOR_TEXT, 2
-        )
-        
-        # Ready indicator based on requirements
-        ready = False
-        ready_text = ""
-        
-        if exact_points:
-            if current_count == required_points:
-                ready = True
-                ready_text = "Press Enter to confirm"
-        else:
-            if current_count >= required_points:
-                ready = True
-                ready_text = "Press Enter to confirm"
-        
-        if ready:
-            ready_size = cv2.getTextSize(ready_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)[0]
-            cv2.putText(
-                image, ready_text, 
-                (image.shape[1] - ready_size[0] - 10, text_size[1] + 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, self.COLOR_TARGET_POINT, 1
-            )
-    
+            # Undo last point
+            if self._waiting_for == "target" and len(self.source_points) > len(self.target_points):
+                # We just placed a source point, undo it
+                removed = self.source_points.pop()
+                self._waiting_for = "source"
+                logger.debug(f"Undid source point: ({removed.x:.0f}, {removed.y:.0f})")
+            elif self._waiting_for == "source" and self.target_points:
+                # Undo the last completed pair (remove both target and source)
+                removed_t = self.target_points.pop()
+                removed_s = self.source_points.pop()
+                # Stay waiting for source (to redo the pair)
+                logger.debug(f"Undid pair: src=({removed_s.x:.0f},{removed_s.y:.0f}), "
+                             f"tgt=({removed_t.x:.0f},{removed_t.y:.0f})")
+
+    # ---- preview (called by InteractiveCalibrator after confirmation) ----
+
     def show_correspondence_preview(
         self,
         source_image: np.ndarray,
@@ -274,100 +289,33 @@ class PointSelector:
         source_points: List[Point],
         target_points: List[Point]
     ) -> bool:
-        """Show side-by-side preview of point correspondences.
-        
-        Args:
-            source_image: Source image
-            target_image: Target image  
-            source_points: Points from source
-            target_points: Corresponding points from target
-            
-        Returns:
-            True if user confirms, False if user wants to redo
-        """
+        """Show preview of correspondences. Enter=confirm, r=redo, ESC=cancel."""
         if len(source_points) != len(target_points):
-            return True  # Skip preview if mismatch
-            
-        # Create side-by-side display
-        h1, w1 = source_image.shape[:2]
-        h2, w2 = target_image.shape[:2]
-        
-        # Calculate scaling for target image if needed
-        target_height = h1
-        scale_x = scale_y = 1.0
-        
-        if h2 != h1:
-            aspect_ratio = w2 / h2
-            target_width = int(target_height * aspect_ratio)
-            target_resized = cv2.resize(target_image, (target_width, target_height))
-            # Calculate scaling factors
-            scale_x = target_width / w2
-            scale_y = target_height / h2
-        else:
-            target_resized = target_image.copy()
-            target_width = w2
-        
-        # Create combined image
-        combined = np.zeros((target_height, w1 + target_width, 3), dtype=np.uint8)
-        combined[:, :w1] = source_image
-        combined[:, w1:] = target_resized
-        
-        # Draw points and connections
-        display = combined.copy()
-        
-        for i, (src_pt, tgt_pt) in enumerate(zip(source_points, target_points)):
-            # Draw source point
-            cv2.circle(display, src_pt.as_tuple(), self.POINT_RADIUS, self.COLOR_SOURCE_POINT, self.POINT_THICKNESS)
-            
-            # Scale target point to match resized image and offset by source width
-            scaled_target_x = int(tgt_pt.x * scale_x) + w1
-            scaled_target_y = int(tgt_pt.y * scale_y)
-            target_pos = (scaled_target_x, scaled_target_y)
-            
-            cv2.circle(display, target_pos, self.POINT_RADIUS, self.COLOR_TARGET_POINT, self.POINT_THICKNESS)
-            
-            # Draw connection line
-            cv2.line(display, src_pt.as_tuple(), target_pos, self.COLOR_CONNECTION_LINE, self.LINE_THICKNESS)
-            
-            # Draw numbers with black background for visibility
-            text = str(i + 1)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.7
-            thickness = 2
-            
-            # Source point number
-            src_text_pos = (src_pt.as_tuple()[0] - 10, src_pt.as_tuple()[1] - 15)
-            text_size = cv2.getTextSize(text, font, font_scale, thickness)[0]
-            cv2.rectangle(display, 
-                         (src_text_pos[0] - 3, src_text_pos[1] - text_size[1] - 3),
-                         (src_text_pos[0] + text_size[0] + 3, src_text_pos[1] + 3),
-                         self.COLOR_TEXT_BG, -1)
-            cv2.putText(display, text, src_text_pos, font, font_scale, self.COLOR_TEXT, thickness)
-            
-            # Target point number  
-            tgt_text_pos = (target_pos[0] - 10, target_pos[1] - 15)
-            cv2.rectangle(display,
-                         (tgt_text_pos[0] - 3, tgt_text_pos[1] - text_size[1] - 3),
-                         (tgt_text_pos[0] + text_size[0] + 3, tgt_text_pos[1] + 3),
-                         self.COLOR_TEXT_BG, -1)
-            cv2.putText(display, text, tgt_text_pos, font, font_scale, self.COLOR_TEXT, thickness)
-        
-        # Add instructions
-        cv2.putText(display, "Point Correspondences - Enter to confirm, 'r' to redo, ESC to cancel",
-                   (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, self.COLOR_TEXT, 2)
-        
-        # Show preview
+            return True
+
+        self._src_orig = source_image
+        self._tgt_orig = target_image
+        self.source_points = list(source_points)
+        self.target_points = list(target_points)
+        self._build_layout(source_image, target_image)
+
+        display = self._render()
+
+        # Add confirmation text
+        fs = max(0.4, 0.6 * self._display_h / 800)
+        ft = max(1, int(2 * self._display_h / 800))
+        cv2.putText(display, "Preview -- Enter to confirm, 'r' to redo, ESC to cancel",
+                    (10, self._display_h - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, fs, self.COLOR_TEXT, ft)
+
         cv2.namedWindow("Calibration Preview", cv2.WINDOW_NORMAL)
         cv2.imshow("Calibration Preview", display)
-        
+
         while True:
-            key = cv2.waitKey(1) & 0xFF
-            if key == 13 or key == 10:  # Enter - Confirm
+            key = cv2.waitKey(30) & 0xFF
+            if key in (13, 10):
                 cv2.destroyAllWindows()
                 return True
-            elif key == ord('r') or key == ord('R'):  # Redo
-                cv2.destroyAllWindows() 
-                return False
-            elif key == 27:  # ESC - Cancel
+            elif key in (ord('r'), ord('R'), 27):
                 cv2.destroyAllWindows()
                 return False
